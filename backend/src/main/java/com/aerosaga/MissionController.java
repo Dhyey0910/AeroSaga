@@ -1,7 +1,9 @@
 package com.aerosaga;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,16 +14,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/api")
 @CrossOrigin
 public class MissionController {
+    private static final double MAX_TARGET_OFFSET_DEGREES = 1.0;
+
     private final WorkflowClient client;
     private final TelemetryStore telemetryStore;
     private final TelemetryGateway gateway;
+    private final AeroProperties props;
     private final Set<String> drones = ConcurrentHashMap.newKeySet();
     private final Random rnd = new Random();
 
-    public MissionController(WorkflowClient client, TelemetryStore telemetryStore, TelemetryGateway gateway) {
+    public MissionController(WorkflowClient client, TelemetryStore telemetryStore,
+                             TelemetryGateway gateway, AeroProperties props) {
         this.client = client;
         this.telemetryStore = telemetryStore;
         this.gateway = gateway;
+        this.props = props;
     }
 
     /** Launch a fleet of N drones. failOne=true makes drone-1's drop fail (shows compensation). */
@@ -33,14 +40,37 @@ public class MissionController {
             String id = "drone-" + i;
             drones.add(id);
             missions.add(new MissionRequest(id,
-                    DroneActivitiesImpl.BASE_LAT + (rnd.nextDouble() - 0.5) * 0.3,
-                    DroneActivitiesImpl.BASE_LON + (rnd.nextDouble() - 0.5) * 0.3,
+                    props.getBaseLat() + (rnd.nextDouble() - 0.5) * 0.3,
+                    props.getBaseLon() + (rnd.nextDouble() - 0.5) * 0.3,
                     failOne && i == 1));
         }
         FleetWorkflow fleet = client.newWorkflowStub(FleetWorkflow.class, WorkflowOptions.newBuilder()
                 .setTaskQueue(TemporalConfig.QUEUE).setWorkflowId("fleet-" + System.currentTimeMillis()).build());
         WorkflowClient.start(fleet::run, missions);
         return Map.of("started", count);
+    }
+
+    /** Launch ONE drone to a chosen target. Returns 400 for bad input and 409 if it is already flying. */
+    @PostMapping("/missions")
+    public ResponseEntity<Map<String, Object>> startMission(@RequestBody MissionLaunchRequest body) {
+        List<String> errors = body.validate(props.getBaseLat(), props.getBaseLon(), MAX_TARGET_OFFSET_DEGREES);
+        if (!errors.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("errors", errors));
+        }
+
+        MissionWorkflow workflow = client.newWorkflowStub(MissionWorkflow.class, WorkflowOptions.newBuilder()
+                .setTaskQueue(TemporalConfig.QUEUE)
+                .setWorkflowId("mission-" + body.droneId)
+                .build());
+        try {
+            WorkflowClient.start(workflow::run, body.toMissionRequest());
+        } catch (WorkflowExecutionAlreadyStarted e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", body.droneId + " is already on a mission"));
+        }
+        drones.add(body.droneId);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(Map.of("started", body.droneId, "workflowId", "mission-" + body.droneId));
     }
 
     /** Polled by the UI: current DAG state of every drone (Temporal query). */
