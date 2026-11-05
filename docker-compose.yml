@@ -1,7 +1,8 @@
+# Temporal dev server: persists workflow state, gRPC on 7233, Web UI on 8233
 services:
   temporal:
     image: temporalio/temporal:latest
     command: ["server", "start-dev", "--ip", "0.0.0.0"]
     ports:
-      - "7233:7233"   # gRPC (backend connects here)
-      - "8233:8233"   # Temporal Web UI -> http://localhost:8233
+      - "7233:7233"
+      - "8233:8233"

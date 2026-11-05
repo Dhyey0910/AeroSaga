@@ -11,8 +11,15 @@ import org.springframework.context.annotation.Configuration;
 public class TemporalConfig {
     public static final String QUEUE = "AEROSAGA_QUEUE";
 
-    @Bean WorkflowServiceStubs serviceStubs() { return WorkflowServiceStubs.newLocalServiceStubs(); } // localhost:7233
-    @Bean WorkflowClient workflowClient(WorkflowServiceStubs s) { return WorkflowClient.newInstance(s); }
+    @Bean
+    WorkflowServiceStubs serviceStubs() {
+        return WorkflowServiceStubs.newLocalServiceStubs(); // localhost:7233
+    }
+
+    @Bean
+    WorkflowClient workflowClient(WorkflowServiceStubs stubs) {
+        return WorkflowClient.newInstance(stubs);
+    }
 
     @Bean
     WorkerFactory workerFactory(WorkflowClient client, DroneActivitiesImpl activities) {

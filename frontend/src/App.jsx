@@ -1,87 +1,58 @@
-import React, { useEffect, useRef, useState } from 'react';
-
-const Cesium = window.Cesium;
-const BASE = { lon: 77.209, lat: 28.6139 };
+import React, { useCallback, useEffect, useState } from 'react';
+import GlobeView from './components/GlobeView.jsx';
+import FleetSummary from './components/FleetSummary.jsx';
+import LaunchPanel from './components/LaunchPanel.jsx';
+import DroneCard from './components/DroneCard.jsx';
+import * as api from './api.js';
 
 export default function App() {
-  const mapRef = useRef(null);
-  const viewerRef = useRef(null);
-  const entities = useRef({});
   const [states, setStates] = useState([]);
-  const [count, setCount] = useState(5);
-  const [failOne, setFailOne] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [message, setMessage] = useState('');
 
-  // 3D globe + live telemetry over WebSocket
+  // poll the workflow state (Temporal query) once per second
   useEffect(() => {
-    const viewer = new Cesium.Viewer(mapRef.current, {
-      baseLayer: new Cesium.ImageryLayer(
-        new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
-      ),
-      baseLayerPicker: false, geocoder: false, homeButton: false, animation: false, timeline: false,
-    });
-    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(BASE.lon, BASE.lat, 60000) });
-    viewerRef.current = viewer;
-
-    const ws = new WebSocket('ws://localhost:8080/ws/telemetry');
-    ws.onmessage = (e) => {
-      const t = JSON.parse(e.data);
-      const pos = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, t.alt);
-      let ent = entities.current[t.droneId];
-      if (!ent) {
-        ent = viewer.entities.add({
-          position: pos,
-          point: { pixelSize: 10, color: Cesium.Color.DODGERBLUE, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
-          label: { text: t.droneId, font: '12px sans-serif', pixelOffset: new Cesium.Cartesian2(0, -18),
-                   fillColor: Cesium.Color.WHITE, showBackground: true, backgroundColor: Cesium.Color.fromCssColorString('#1d4ed8') },
-        });
-        entities.current[t.droneId] = ent;
-      } else {
-        ent.position = pos;
-      }
-    };
-    return () => { ws.close(); viewer.destroy(); };
-  }, []);
-
-  // poll workflow state (Temporal query) once per second
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetch('/api/states').then((r) => r.json()).then(setStates).catch(() => {});
-    }, 1000);
+    const tick = () => api.getStates().then(setStates).catch(() => {});
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const launch = () => fetch(`/api/fleet?count=${count}&failOne=${failOne}`, { method: 'POST' });
-  const abort = (id) => fetch(`/api/missions/${id}/abort`, { method: 'POST' });
+  // run an API action and show any error in the panel
+  const run = useCallback(async (action) => {
+    try {
+      setMessage('');
+      await action();
+    } catch (e) {
+      setMessage(e.message);
+    }
+  }, []);
 
   return (
     <div className="layout">
-      <div className="map" ref={mapRef} />
+      <GlobeView states={states} selected={selected} />
       <aside className="panel">
         <h1>AeroSaga</h1>
         <p className="sub">Temporal drone mission control</p>
 
-        <div className="controls">
-          <label>Drones <input type="number" min="1" max="50" value={count} onChange={(e) => setCount(e.target.value)} /></label>
-          <label className="chk"><input type="checkbox" checked={failOne} onChange={(e) => setFailOne(e.target.checked)} /> Fail drone-1 drop</label>
-          <button onClick={launch}>Launch Fleet</button>
-        </div>
+        <LaunchPanel
+          onLaunch={(count, failOne) => run(() => api.launchFleet(count, failOne))}
+          onAbortAll={() => run(api.abortAll)}
+          message={message}
+        />
+        <FleetSummary states={states} />
 
+        {states.length === 0 && <p className="empty">No drones yet. Launch a fleet.</p>}
         {states.map((s) => (
-          <div className="card" key={s.droneId}>
-            <div className="row">
-              <b>{s.droneId}</b>
-              <span className={`badge ${s.status}`}>{s.status}</span>
-            </div>
-            <div className="dag">
-              {s.steps.map((st, i) => (
-                <React.Fragment key={st.name}>
-                  <span className={`node ${st.status}`}>{st.name.replace('_', ' ')}</span>
-                  {i < s.steps.length - 1 && <span className="arrow">→</span>}
-                </React.Fragment>
-              ))}
-            </div>
-            {s.status === 'RUNNING' && <button className="abort" onClick={() => abort(s.droneId)}>Emergency Abort</button>}
-          </div>
+          <DroneCard
+            key={s.droneId}
+            state={s}
+            selected={selected === s.droneId}
+            onSelect={() => setSelected(selected === s.droneId ? null : s.droneId)}
+            onStorm={() => run(() => api.stormDrone(s.droneId))}
+            onReconnect={() => run(() => api.reconnectDrone(s.droneId))}
+            onAbort={() => run(() => api.abortDrone(s.droneId))}
+          />
         ))}
       </aside>
     </div>

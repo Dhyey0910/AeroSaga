@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/** Receives GPS pings from the (mock) drones and routes them to every connected browser. */
 @Component
 public class TelemetryGateway extends TextWebSocketHandler {
     private final Set<WebSocketSession> sessions = new CopyOnWriteArraySet<>();
@@ -22,6 +23,8 @@ public class TelemetryGateway extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession s) {
         sessions.add(s);
+        // a freshly opened browser tab immediately gets the last known position of every drone
+        store.latestAll().values().forEach(p -> send(s, toJson(p)));
     }
 
     @Override

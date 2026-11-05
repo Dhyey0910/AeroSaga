@@ -60,16 +60,6 @@ public class TelemetryStore {
         return out;
     }
 
-    public int count(String droneId) {
-        LinkedList<TelemetryPoint> list = history.get(droneId);
-        if (list == null) {
-            return 0;
-        }
-        synchronized (list) {
-            return list.size();
-        }
-    }
-
     public void clear() {
         history.clear();
     }

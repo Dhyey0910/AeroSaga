@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/** Simulates a storm: the drone drops offline, the mission workflow pauses, then resumes on reconnect. */
+/** Simulates a storm: the drone drops offline, its mission workflow pauses, then resumes on reconnect. */
 @RestController
 @RequestMapping("/api/missions/{droneId}")
 @CrossOrigin

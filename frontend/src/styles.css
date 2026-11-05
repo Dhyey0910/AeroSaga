@@ -1,25 +1,53 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; background: #0b1b3a; color: #e6efff; }
 .layout { display: flex; height: 100vh; }
-.map { flex: 1; }
-.panel { width: 380px; overflow-y: auto; padding: 16px; background: #0f2a5c; border-left: 3px solid #2563eb; }
+.map { flex: 1; min-width: 0; }
+.panel { width: 400px; overflow-y: auto; padding: 16px; background: #0f2a5c; border-left: 3px solid #2563eb; }
 h1 { margin: 0; color: #60a5fa; }
 .sub { margin: 2px 0 14px; color: #93c5fd; font-size: 13px; }
-.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
-.controls input[type=number] { width: 60px; padding: 4px; border-radius: 4px; border: 1px solid #2563eb; }
+
+.launch { margin-bottom: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.controls input[type=number] { width: 62px; padding: 4px; border-radius: 4px; border: 1px solid #2563eb; margin-left: 6px; }
 .chk { font-size: 13px; }
-button { background: #2563eb; color: #fff; border: 0; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
+.hint { font-size: 11px; color: #93c5fd; margin: 4px 0; }
+.error { font-size: 12px; background: #7f1d1d; padding: 6px 8px; border-radius: 6px; margin: 6px 0 0; }
+.empty { color: #93c5fd; font-size: 13px; }
+
+button { background: #2563eb; color: #fff; border: 0; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 button:hover { background: #1d4ed8; }
+button.ghost { background: #1e3a8a; }
+button.danger, button.abort { background: #b91c1c; }
+button.storm { background: #b45309; }
+
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.pill { background: #13376f; border-radius: 8px; padding: 6px; text-align: center; border-top: 3px solid #3b82f6; }
+.pill b { display: block; font-size: 18px; }
+.pill span { font-size: 11px; color: #93c5fd; }
+.pill.OFFLINE { border-color: #f59e0b; }
+.pill.COMPLETED { border-color: #22c55e; }
+.pill.COMPENSATED { border-color: #ef4444; }
+
 .card { background: #13376f; border: 1px solid #2563eb55; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-.row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.card.selected { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa; }
+.row { display: flex; justify-content: space-between; margin-bottom: 8px; cursor: pointer; }
 .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1e40af; }
 .badge.COMPLETED { background: #15803d; }
-.badge.COMPENSATING, .badge.COMPENSATED, .badge.ABORTED { background: #b45309; }
+.badge.OFFLINE { background: #b45309; }
+.badge.COMPENSATING, .badge.COMPENSATED, .badge.ABORTED { background: #b91c1c; }
+
+.battery { position: relative; height: 12px; background: #0b1b3a; border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.battery .level { height: 100%; background: #3b82f6; transition: width .4s; }
+.battery .level.low { background: #ef4444; }
+.battery span { position: absolute; inset: 0; font-size: 9px; text-align: center; line-height: 12px; }
+
 .dag { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .node { font-size: 10px; padding: 3px 6px; border-radius: 4px; background: #334e7d; }
 .node.ACTIVE { background: #3b82f6; animation: pulse 1s infinite; }
 .node.COMPLETED { background: #15803d; }
 .node.FAILED { background: #b91c1c; }
 .arrow { color: #93c5fd; }
-.abort { margin-top: 8px; background: #b91c1c; font-size: 12px; }
+.actions { display: flex; gap: 6px; margin-top: 8px; }
+.actions button { font-size: 12px; padding: 5px 9px; }
+
 @keyframes pulse { 50% { opacity: .5; } }

@@ -9,7 +9,10 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
     private final TelemetryGateway gateway;
-    public WebSocketConfig(TelemetryGateway gateway) { this.gateway = gateway; }
+
+    public WebSocketConfig(TelemetryGateway gateway) {
+        this.gateway = gateway;
+    }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {

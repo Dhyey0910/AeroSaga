@@ -1,5 +1,6 @@
 package com.aerosaga;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.client.WorkflowServiceException;
@@ -18,16 +19,28 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class ApiExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    /** Abort or query for a drone that has no mission. */
+    /** Abort, storm or query for a drone that has no (running) mission. */
     @ExceptionHandler(WorkflowNotFoundException.class)
     public ResponseEntity<ApiError> notFound(WorkflowNotFoundException e, HttpServletRequest req) {
         return build(HttpStatus.NOT_FOUND, "No mission found for this drone", req);
     }
 
-    /** Temporal server is down or unreachable. */
-    @ExceptionHandler({WorkflowServiceException.class, StatusRuntimeException.class})
-    public ResponseEntity<ApiError> temporalUnavailable(Exception e, HttpServletRequest req) {
+    /** Temporal returned an error: NOT_FOUND means the workflow is gone, anything else means the server is unreachable. */
+    @ExceptionHandler(WorkflowServiceException.class)
+    public ResponseEntity<ApiError> serviceError(WorkflowServiceException e, HttpServletRequest req) {
+        Throwable cause = e.getCause();
+        if (cause instanceof StatusRuntimeException
+                && ((StatusRuntimeException) cause).getStatus().getCode() == Status.Code.NOT_FOUND) {
+            return build(HttpStatus.NOT_FOUND, "No running mission found for this drone", req);
+        }
         log.warn("Temporal call failed: {}", e.getMessage());
+        return build(HttpStatus.SERVICE_UNAVAILABLE,
+                "Temporal server is unavailable. Is docker compose running?", req);
+    }
+
+    @ExceptionHandler(StatusRuntimeException.class)
+    public ResponseEntity<ApiError> grpcError(StatusRuntimeException e, HttpServletRequest req) {
+        log.warn("gRPC call failed: {}", e.getMessage());
         return build(HttpStatus.SERVICE_UNAVAILABLE,
                 "Temporal server is unavailable. Is docker compose running?", req);
     }
