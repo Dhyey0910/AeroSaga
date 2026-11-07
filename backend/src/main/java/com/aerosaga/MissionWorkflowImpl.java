@@ -30,6 +30,20 @@ public class MissionWorkflowImpl implements MissionWorkflow {
     private boolean aborted = false;
     private boolean offline = false;
 
+
+
+    private void step(int i, Runnable body) {
+        checkpoint();
+        Step s = state.steps.get(i);
+        s.status = "ACTIVE";
+        try {
+            body.run();
+            s.status = "COMPLETED";
+        } catch (RuntimeException e) {
+            s.status = "FAILED";
+            throw e;
+        }
+    }
     @Override
     public String run(MissionRequest r) {
         state.droneId = r.droneId;
@@ -60,21 +74,6 @@ public class MissionWorkflowImpl implements MissionWorkflow {
         }
         return state.status;
     }
-
-    private void step(int i, Runnable body) {
-        checkpoint();
-        Step s = state.steps.get(i);
-        s.status = "ACTIVE";
-        try {
-            body.run();
-            s.status = "COMPLETED";
-        } catch (RuntimeException e) {
-            s.status = "FAILED";
-            throw e;
-        }
-    }
-
-    /**
      * Durable pause: while the drone is offline the workflow just waits, for seconds or for hours.
      * Its state lives in Temporal, so even a backend restart does not lose it.
      */
