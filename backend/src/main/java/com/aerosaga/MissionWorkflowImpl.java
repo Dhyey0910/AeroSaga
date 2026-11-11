@@ -31,6 +31,11 @@ public class MissionWorkflowImpl implements MissionWorkflow {
     private boolean offline = false;
 
     @Override
+    public MissionState getState() {
+        return state;
+    }
+
+    @Override
     public String run(MissionRequest r) {
         state.droneId = r.droneId;
         state.status = offline ? "OFFLINE" : "RUNNING";
@@ -89,11 +94,6 @@ public class MissionWorkflowImpl implements MissionWorkflow {
         if (aborted) {
             throw ApplicationFailure.newNonRetryableFailure("Emergency abort", "Abort");
         }
-    }
-
-    @Override
-    public MissionState getState() {
-        return state;
     }
 
     @Override
